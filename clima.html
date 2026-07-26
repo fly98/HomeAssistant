@@ -86,13 +86,20 @@
   .mbtn { flex:1; padding:14px; border-radius:13px; border:none; font-size:0.92rem; font-weight:700; cursor:pointer; }
   .mbtn-save { background: linear-gradient(135deg,var(--blue),var(--blue-deep)); color:#fff; }
   .mbtn-cancel { background:rgba(120,150,170,0.2); color:var(--ink); }
+
+  .switch-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:4px; }
+  .switch-cell { display:flex; align-items:center; justify-content:space-between; gap:8px; background:var(--frost-strong); border:1px solid rgba(255,255,255,0.6); border-radius:11px; padding:9px 11px; }
+  .switch-cell .sc-label { font-size:0.76rem; font-weight:600; line-height:1.15; }
+  .switch-cell.disabled-block { opacity:0.4; pointer-events:none; }
+  .selects-grid { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+  @media (max-width:440px){ .selects-grid { grid-template-columns:1fr; } }
   .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:rgba(16,56,79,0.92); backdrop-filter:blur(10px); color:#fff; padding:13px 22px; border-radius:14px; font-weight:600; font-size:0.85rem; opacity:0; transition:.3s; pointer-events:none; z-index:2000; }
   .toast.show { opacity:1; }
 </style>
 </head>
 <body>
 <h1>Clima Camera</h1>
-<div class="sub">❄️ Camera da letto · <span id="conn">connessione…</span> · <span style="opacity:0.6">v1.3</span></div>
+<div class="sub">❄️ Camera da letto · <span id="conn">connessione…</span> · <span style="opacity:0.6">v1.4</span></div>
 
 <div class="glass">
   <div class="card-title">Stato attuale</div>
@@ -185,21 +192,28 @@ function renderControls() {
   const climate = STATE[CLIMATE]
   const fanMode = climate ? climate.attributes.fan_mode : null
   const fanLocked = aiOn && AI_LOCKS.includes('fan_mode')
+  // Ventola (piena larghezza, scroll pill)
   html += '<div class="ctrl-block '+(fanLocked?'disabled-block':'')+'"><div class="ctrl-label">Velocità ventola</div><div class="pill-row">'
   FAN.opts.forEach(o => html += '<div class="pill '+(fanMode===o?'active':'')+'" onclick="setFan(\''+o+'\')">'+FAN.labels[o]+'</div>')
   html += '</div></div>'
+  // Selects in griglia 2 colonne
+  html += '<div class="selects-grid">'
   SELECTS.forEach(s => {
     const cur = STATE[sel(s.id)] ? STATE[sel(s.id)].state : null
     const locked = aiOn && AI_LOCKS.includes(s.id)
-    html += '<div class="ctrl-block '+(locked?'disabled-block':'')+'"><div class="ctrl-label">'+s.label+'</div><div class="pill-row">'
+    html += '<div class="ctrl-block '+(locked?'disabled-block':'')+'" style="border-bottom:none;padding:4px 0"><div class="ctrl-label">'+s.label+'</div><div class="pill-row">'
     s.opts.forEach(o => html += '<div class="pill '+(cur===o?'active':'')+'" onclick="setSelect(\''+s.id+'\',\''+o+'\')">'+(s.labels[o]||o)+'</div>')
     html += '</div></div>'
   })
+  html += '</div>'
+  // Switches in griglia 2 colonne compatta
+  html += '<div class="switch-grid">'
   SWITCHES.forEach(s => {
     const on = STATE[sw(s.id)] && STATE[sw(s.id)].state === 'on'
     const locked = aiOn && AI_LOCKS.includes(s.id)
-    html += '<div class="ctrl-row '+(locked?'disabled-block':'')+'"><div><div style="font-weight:600;font-size:0.82rem">'+s.label+'</div>'+(s.sub?'<div style="font-size:0.7rem;color:var(--ink-soft)">'+s.sub+'</div>':'')+'</div><button class="toggle '+(on?'on':'')+'" onclick="toggleSwitch(\''+s.id+'\')"></button></div>'
+    html += '<div class="switch-cell '+(locked?'disabled-block':'')+'"><span class="sc-label">'+s.label+'</span><button class="toggle '+(on?'on':'')+'" onclick="toggleSwitch(\''+s.id+'\')"></button></div>'
   })
+  html += '</div>'
   c.innerHTML = html
 }
 const THEMES = {
