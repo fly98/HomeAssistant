@@ -101,7 +101,7 @@
 </head>
 <body>
 <h1>Clima Camera</h1>
-<div class="sub" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 2px;"><span>❄️ <span id="conn">connessione…</span> · <span style="opacity:0.6">v1.8</span></span><button onclick="refreshWidget();toast('Aggiorno il widget…')" style="border:1.5px solid var(--ink-soft);background:rgba(255,255,255,0.55);color:var(--ink);border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;padding:4px 12px;line-height:1.2;white-space:nowrap;">Aggiorna</button></div>
+<div class="sub" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 2px;"><span>❄️ <span id="conn">connessione…</span> · <span style="opacity:0.6">v1.9</span></span><button onclick="refreshWidget();toast('Aggiorno il widget…')" style="border:1.5px solid var(--ink-soft);background:rgba(255,255,255,0.55);color:var(--ink);border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;padding:4px 12px;line-height:1.2;white-space:nowrap;">Aggiorna</button></div>
 
 <div class="glass">
   <div class="card-title">Stato attuale</div>
@@ -188,7 +188,8 @@ async function fetchStates() {
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200) }
 function renderControls() {
   const c = document.getElementById('controls-container')
-  const aiOn = STATE[sw('ai')] && STATE[sw('ai')].state === 'on'
+  const climateState = STATE[CLIMATE] ? STATE[CLIMATE].state : 'off'
+  const aiOn = (climateState === 'auto') && STATE[sw('ai')] && STATE[sw('ai')].state === 'on'
   document.getElementById('ai-warn').style.display = aiOn ? 'block' : 'none'
   let html = ''
   const climate = STATE[CLIMATE]
@@ -319,7 +320,8 @@ function openModal(id) {
 }
 function closeModal(){ document.getElementById('modal-bg').classList.remove('show'); editingPreset=null }
 function renderModalFields() {
-  const aiOn = modalValues.sw_ai === true
+  // AI blocca i controlli solo quando la modalità è 'auto' (AI vera e propria)
+  const aiOn = (modalValues.hvac_mode === 'auto') && (modalValues.sw_ai === true)
   let h = '<div class="ctrl-block"><div class="ctrl-label">Modalità</div><div class="pill-row">'
   MODES.forEach(m=>h+='<div class="pill '+(modalValues.hvac_mode===m.v?'active':'')+'" onclick="mSet(\'hvac_mode\',\''+m.v+'\')">'+m.l+'</div>')
   h += '</div></div>'
@@ -344,9 +346,26 @@ function renderModalFields() {
   })
   document.getElementById('modal-fields').innerHTML = h
 }
-function mSet(k,v){ modalValues[k]=v; renderModalFields() }
+function mSet(k,v){
+  modalValues[k]=v
+  // Coerenza AI <-> modalità: auto accende l'AI, le altre modalità la spengono
+  if (k==='hvac_mode') {
+    if (v==='auto') modalValues.sw_ai = true
+    else modalValues.sw_ai = false
+  }
+  // Se accendo/spengo AI manualmente e sono in auto, ok; se accendo AI fuori da auto, riporto a auto
+  renderModalFields()
+}
 function mTemp(d){ modalValues.temperature=Math.max(16,Math.min(32,modalValues.temperature+d)); renderModalFields() }
-function mToggle(id){ modalValues['sw_'+id]=!modalValues['sw_'+id]; renderModalFields() }
+function mToggle(id){
+  modalValues['sw_'+id]=!modalValues['sw_'+id]
+  // Se accendo AI, porto la modalità su auto; se spengo AI mentre sono in auto, passo a cool
+  if (id==='ai') {
+    if (modalValues.sw_ai===true) modalValues.hvac_mode='auto'
+    else if (modalValues.hvac_mode==='auto') modalValues.hvac_mode='cool'
+  }
+  renderModalFields()
+}
 async function savePresetFromModal() {
   const v = modalValues
   const seq = []
