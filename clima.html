@@ -345,10 +345,10 @@ function renderModalFields() {
     h += '</div></div>'
   })
   SWITCHES.forEach(s=>{
-    const locked = aiOn && AI_LOCKS.includes(s.id)
-    // il toggle AI è ON solo se la modalità è auto
+    let locked = aiOn && AI_LOCKS.includes(s.id)
     let isOn = modalValues['sw_'+s.id]
-    if (s.id==='ai') isOn = (modalValues.hvac_mode==='auto')
+    // Il toggle AI: ON solo se modalità auto, e disabilitato se non sei in auto
+    if (s.id==='ai') { isOn = (modalValues.hvac_mode==='auto'); locked = (modalValues.hvac_mode!=='auto') }
     h += '<div class="ctrl-row '+(locked?'disabled-block':'')+'"><div><div style="font-weight:600;font-size:0.82rem">'+s.label+'</div>'+(s.sub?'<div style="font-size:0.7rem;color:var(--ink-soft)">'+s.sub+'</div>':'')+'</div><button class="toggle '+(isOn?'on':'')+'" onclick="mToggle(\''+s.id+'\')"></button></div>'
   })
   document.getElementById('modal-fields').innerHTML = h
