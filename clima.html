@@ -101,7 +101,7 @@
 </head>
 <body>
 <h1>Clima Camera</h1>
-<div class="sub" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 2px;"><span>❄️ <span id="conn">connessione…</span> · <span style="opacity:0.6">v1.9</span></span><button onclick="refreshWidget();toast('Aggiorno il widget…')" style="border:1.5px solid var(--ink-soft);background:rgba(255,255,255,0.55);color:var(--ink);border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;padding:4px 12px;line-height:1.2;white-space:nowrap;">Aggiorna</button></div>
+<div class="sub" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 2px;"><span>❄️ <span id="conn">connessione…</span> · <span style="opacity:0.6">v2.0</span></span><button onclick="refreshWidget();toast('Aggiorno il widget…')" style="border:1.5px solid var(--ink-soft);background:rgba(255,255,255,0.55);color:var(--ink);border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;padding:4px 12px;line-height:1.2;white-space:nowrap;">Aggiorna</button></div>
 
 <div class="glass">
   <div class="card-title">Stato attuale</div>
@@ -203,7 +203,8 @@ function renderControls() {
   html += '<div class="selects-grid">'
   SELECTS.forEach(s => {
     const cur = STATE[sel(s.id)] ? STATE[sel(s.id)].state : null
-    const locked = aiOn && AI_LOCKS.includes(s.id)
+    let locked = aiOn && AI_LOCKS.includes(s.id)
+    if (s.id==='compensazione_temperatura') locked = !aiOn  // compensazione ±3 solo con AI
     html += '<div class="ctrl-block '+(locked?'disabled-block':'')+'" style="border-bottom:none;padding:4px 0"><div class="ctrl-label">'+s.label+'</div><div class="pill-row">'
     s.opts.forEach(o => html += '<div class="pill '+(cur===o?'active':'')+'" onclick="setSelect(\''+s.id+'\',\''+o+'\')">'+(s.labels[o]||o)+'</div>')
     html += '</div></div>'
@@ -335,7 +336,8 @@ function renderModalFields() {
     h += '</div></div>'
   }
   SELECTS.forEach(s=>{
-    const locked = aiOn && AI_LOCKS.includes(s.id)
+    let locked = aiOn && AI_LOCKS.includes(s.id)
+    if (s.id==='compensazione_temperatura') locked = !aiOn  // la compensazione ±3 vale solo con AI attiva
     h += '<div class="ctrl-block '+(locked?'disabled-block':'')+'"><div class="ctrl-label">'+s.label+'</div><div class="pill-row">'
     s.opts.forEach(o=>h+='<div class="pill '+(modalValues[s.id]===o?'active':'')+'" onclick="mSet(\''+s.id+'\',\''+o+'\')">'+(s.labels[o]||o)+'</div>')
     h += '</div></div>'
