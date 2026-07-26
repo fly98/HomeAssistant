@@ -32,7 +32,7 @@
     border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 6px 22px var(--shadow);
     padding: 13px 14px; margin-bottom: 10px;
   }
-  h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.5px; }
+  h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.5px; text-align: center; }
   .sub { font-size: 0.7rem; color: var(--ink-soft); margin: 2px 0 11px; font-weight: 500; }
   .card-title { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--ink-soft); margin-bottom: 9px; }
   .info-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 7px; }
@@ -101,7 +101,7 @@
 </head>
 <body>
 <h1>Clima Camera</h1>
-<div class="sub" style="display:flex;align-items:center;justify-content:space-between;gap:10px;max-width:520px;margin-left:auto;margin-right:auto;padding:0 4px;"><span>❄️ Camera da letto · <span id="conn">connessione…</span> · <span style="opacity:0.6">v1.8</span></span><button onclick="refreshWidget();toast('Aggiorno il widget…')" style="border:1.5px solid var(--ink-soft);background:rgba(255,255,255,0.55);color:var(--ink);border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;padding:4px 12px;line-height:1.2;white-space:nowrap;">Aggiorna</button></div>
+<div class="sub" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 2px;"><span>❄️ Camera da letto · <span id="conn">connessione…</span> · <span style="opacity:0.6">v1.8</span></span><button onclick="refreshWidget();toast('Aggiorno il widget…')" style="border:1.5px solid var(--ink-soft);background:rgba(255,255,255,0.55);color:var(--ink);border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;padding:4px 12px;line-height:1.2;white-space:nowrap;">Aggiorna</button></div>
 
 <div class="glass">
   <div class="card-title">Stato attuale</div>
