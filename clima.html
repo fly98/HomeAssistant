@@ -9,17 +9,21 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
+    /* accent = colore dinamico del tema, cambia con la modalità */
     --blue: #3d9bd4; --blue-deep: #2176ab;
     --frost: rgba(255,255,255,0.55); --frost-strong: rgba(255,255,255,0.72);
     --line: rgba(255,255,255,0.6); --ink: #10384f; --ink-soft: #4a6b7d;
     --shadow: rgba(30,90,130,0.18); --warm: #e8925f; --ok: #5bbf9a;
+    /* gradiente sfondo dinamico */
+    --bg1: #eaf7ff; --bg2: #cbe9fa; --bg3: #a9d9f2;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin:0; padding:0; }
   body {
     font-family: 'Inter', -apple-system, sans-serif; color: var(--ink);
     min-height: 100vh; padding: 18px 16px 40px; max-width: 640px; margin: 0 auto;
-    background: linear-gradient(160deg, #eaf7ff 0%, #cbe9fa 40%, #a9d9f2 100%);
+    background: linear-gradient(160deg, var(--bg1) 0%, var(--bg2) 40%, var(--bg3) 100%);
     background-attachment: fixed;
+    transition: background 0.8s ease;
   }
   .glass {
     background: var(--frost); backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%);
@@ -32,10 +36,11 @@
   .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .info-box { background: var(--frost-strong); border-radius: 14px; padding: 12px 14px; border: 1px solid rgba(255,255,255,0.7); }
   .info-label { font-size: 0.64rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
-  .info-value { font-size: 1.4rem; font-weight: 700; margin-top: 3px; letter-spacing: -0.5px; }
+  .info-value { font-family: -apple-system, 'SF Pro Display', 'Inter', sans-serif; font-size: 1.5rem; font-weight: 600; margin-top: 3px; letter-spacing: -0.5px; font-variant-numeric: tabular-nums; }
   .info-value small { font-size: 0.7rem; color: var(--ink-soft); font-weight: 500; }
   .thermo { display: flex; align-items: center; justify-content: space-between; }
-  .big-temp { font-size: 4rem; font-weight: 700; line-height: 1; letter-spacing: -2px; }
+  .thermo-center { flex:1; text-align:center; }
+  .big-temp { font-family: -apple-system, 'SF Pro Display', 'Inter', sans-serif; font-size: 4.2rem; font-weight: 600; line-height: 1; letter-spacing: -2px; font-variant-numeric: tabular-nums; }
   .big-temp small { font-size: 1.4rem; color: var(--ink-soft); font-weight: 600; }
   .thermo-sub { font-size: 0.82rem; color: var(--ink-soft); font-weight: 500; margin-top: 4px; }
   .rbtn { width: 60px; height: 60px; border-radius: 50%; border: 1px solid var(--line); background: var(--frost-strong); color: var(--blue-deep); font-size: 1.9rem; font-weight: 300; cursor: pointer; display:flex; align-items:center; justify-content:center; box-shadow: 0 3px 10px var(--shadow); }
@@ -100,14 +105,12 @@
 
 <div class="glass">
   <div class="thermo">
-    <div>
+    <button class="rbtn" onclick="stepTemp(-1)">−</button>
+    <div class="thermo-center">
       <div class="big-temp"><span id="t-target">—</span><small>°C</small></div>
       <div class="thermo-sub" id="t-mode">—</div>
     </div>
-    <div class="temp-col">
-      <button class="rbtn" onclick="stepTemp(1)">+</button>
-      <button class="rbtn" onclick="stepTemp(-1)">−</button>
-    </div>
+    <button class="rbtn" onclick="stepTemp(1)">+</button>
   </div>
   <div class="mode-chips" id="mode-chips"></div>
 </div>
@@ -198,8 +201,24 @@ function renderControls() {
   })
   c.innerHTML = html
 }
+const THEMES = {
+  off:      { blue:'#8a9aa5', deep:'#6b7a85', bg1:'#f2f4f6', bg2:'#e2e7ea', bg3:'#d0d7dc', ink:'#3a4750', inkSoft:'#6b7a85', shadow:'rgba(90,100,110,0.15)' },
+  cool:     { blue:'#3d9bd4', deep:'#2176ab', bg1:'#eaf7ff', bg2:'#cbe9fa', bg3:'#a9d9f2', ink:'#10384f', inkSoft:'#4a6b7d', shadow:'rgba(30,90,130,0.18)' },
+  dry:      { blue:'#4bb2c9', deep:'#2a8fa5', bg1:'#e8fbfc', bg2:'#c6f0f2', bg3:'#a2e2e6', ink:'#0f3f45', inkSoft:'#3f6f75', shadow:'rgba(30,120,130,0.18)' },
+  fan_only: { blue:'#7aa8c4', deep:'#5a86a0', bg1:'#eef5f9', bg2:'#dbe8f0', bg3:'#c3d8e4', ink:'#26424f', inkSoft:'#546a76', shadow:'rgba(60,100,120,0.15)' },
+  auto:     { blue:'#5aa9b8', deep:'#3a8494', bg1:'#e9f6f8', bg2:'#cde9ee', bg3:'#a8dae2', ink:'#123f47', inkSoft:'#436b73', shadow:'rgba(30,110,120,0.16)' },
+  heat:     { blue:'#e8925f', deep:'#cf6b3a', bg1:'#fff2ea', bg2:'#ffd9c4', bg3:'#f5b89a', ink:'#5a2c12', inkSoft:'#8a5236', shadow:'rgba(180,80,40,0.18)' }
+}
+function applyTheme(mode) {
+  const t = THEMES[mode] || THEMES.cool
+  const r = document.documentElement.style
+  r.setProperty('--blue', t.blue); r.setProperty('--blue-deep', t.deep)
+  r.setProperty('--bg1', t.bg1); r.setProperty('--bg2', t.bg2); r.setProperty('--bg3', t.bg3)
+  r.setProperty('--ink', t.ink); r.setProperty('--ink-soft', t.inkSoft); r.setProperty('--shadow', t.shadow)
+}
 function renderMode() {
   const climate = STATE[CLIMATE]; const cur = climate ? climate.state : 'off'
+  applyTheme(cur)
   document.getElementById('mode-chips').innerHTML = MODES.map(m=>'<div class="mode-chip '+(cur===m.v?'active':'')+'" onclick="setMode(\''+m.v+'\')">'+m.l+'</div>').join('')
   document.getElementById('t-mode').textContent = (MODES.find(m=>m.v===cur)||{}).l || cur
 }
