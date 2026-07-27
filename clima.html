@@ -101,7 +101,7 @@
 </head>
 <body>
 <h1>Clima Camera</h1>
-<div class="sub" style="padding:0 2px;">❄️ <span id="conn">connessione…</span> · <span style="opacity:0.6">v2.7</span></div>
+<div class="sub" style="padding:0 2px;">❄️ <span id="conn">connessione…</span> · <span style="opacity:0.6">v2.8</span></div>
 
 <div class="glass">
   <div class="card-title">Stato attuale</div>
@@ -380,7 +380,7 @@ async function savePresetFromModal() {
   const seq = []
   // Il ConnectLife non regge una raffica di comandi: vanno distanziati, o meta'
   // vengono scartati. GAP e' la pausa fra un comando e l'altro.
-  const GAP = { delay:{ seconds: 7 } }
+  const GAP = { delay:{ seconds: 10 } }
   seq.push({ action:'climate.set_hvac_mode', target:{entity_id:CLIMATE}, data:{hvac_mode:v.hvac_mode} })
   if (v.hvac_mode!=='off') {
     // partendo da spento l'unita' ci mette qualche secondo a tornare online
@@ -392,9 +392,13 @@ async function savePresetFromModal() {
   // L'AI sul Hisense e' una MODALITA', non un accessorio: switch.turn_off su 'ai'
   // fa uscire l'unita' dalla modalita' corrente e la manda in Ventilatore.
   // Con hvac_mode diverso da 'auto' l'AI e' gia' esclusa, quindi non va mai spenta esplicitamente.
+  // Il purificatore si riprende il controllo della ventola: va acceso PER ULTIMO,
+  // dopo i select, altrimenti sporca cio' che viene dopo di lui.
+  const LAST = 'purificatore_dell_aria'
   SWITCHES.forEach(s=>{
     const on = v['sw_'+s.id]
     if (s.id==='ai' && !on) return
+    if (s.id===LAST) return
     seq.push(GAP)
     seq.push({ action: on?'switch.turn_on':'switch.turn_off', target:{entity_id:sw(s.id)} })
   })
@@ -402,8 +406,10 @@ async function savePresetFromModal() {
   // ridefinisce la velocita' ventola, quindi deve avere l'ultima parola.
   SELECTS.forEach(s=>{ if(v[s.id] && v[s.id]!=='off'){ seq.push(GAP); seq.push({ action:'select.select_option', target:{entity_id:sel(s.id)}, data:{option:v[s.id]} }) } })
   // Coda di verifica: dopo l'assestamento riapplica solo cio' che non ha fatto presa
+  seq.push(GAP)
+  seq.push({ action: v['sw_'+LAST]?'switch.turn_on':'switch.turn_off', target:{entity_id:sw(LAST)} })
   if (v.hvac_mode!=='off') {
-    seq.push({ delay:{seconds:25} })
+    seq.push({ delay:{seconds:40} })
     SWITCHES.forEach(s=>{
       const on = v['sw_'+s.id]
       if (s.id==='ai' && !on) return
