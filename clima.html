@@ -101,7 +101,7 @@
 </head>
 <body>
 <h1>Clima Camera</h1>
-<div class="sub" style="padding:0 2px;">❄️ <span id="conn">connessione…</span> · <span style="opacity:0.6">v2.8</span></div>
+<div class="sub" style="padding:0 2px;">❄️ <span id="conn">connessione…</span> · <span style="opacity:0.6">v2.9</span></div>
 
 <div class="glass">
   <div class="card-title">Stato attuale</div>
@@ -378,16 +378,16 @@ function mToggle(id){
 async function savePresetFromModal() {
   const v = modalValues
   const seq = []
-  // Il ConnectLife non regge una raffica di comandi: vanno distanziati, o meta'
-  // vengono scartati. GAP e' la pausa fra un comando e l'altro.
-  const GAP = { delay:{ seconds: 10 } }
+  // Verificato sul campo: i comandi possono partire tutti insieme, purche' dopo
+  // il cambio modalita' si lascino 5 secondi all'unita' per tornare online.
+  // Serve solo l'ORDINE giusto, non la spaziatura.
+  const GAP = null
   seq.push({ action:'climate.set_hvac_mode', target:{entity_id:CLIMATE}, data:{hvac_mode:v.hvac_mode} })
   if (v.hvac_mode!=='off') {
     // partendo da spento l'unita' ci mette qualche secondo a tornare online
-    seq.push({ wait_template:"{{ is_state('"+CLIMATE+"','"+v.hvac_mode+"') }}", timeout:{seconds:45}, continue_on_timeout:true })
-    seq.push({ delay:{seconds:3} })
+    seq.push({ delay:{seconds:5} })
     seq.push({ action:'climate.set_temperature', target:{entity_id:CLIMATE}, data:{temperature:v.temperature} })
-    if (!v.sw_ai) { seq.push(GAP); seq.push({ action:'climate.set_fan_mode', target:{entity_id:CLIMATE}, data:{fan_mode:v.fan_mode} }) }
+    if (!v.sw_ai) { seq.push({ action:'climate.set_fan_mode', target:{entity_id:CLIMATE}, data:{fan_mode:v.fan_mode} }) }
   }
   // L'AI sul Hisense e' una MODALITA', non un accessorio: switch.turn_off su 'ai'
   // fa uscire l'unita' dalla modalita' corrente e la manda in Ventilatore.
@@ -399,22 +399,20 @@ async function savePresetFromModal() {
     const on = v['sw_'+s.id]
     if (s.id==='ai' && !on) return
     if (s.id===LAST) return
-    seq.push(GAP)
     seq.push({ action: on?'switch.turn_on':'switch.turn_off', target:{entity_id:sw(s.id)} })
   })
   // I select (Riposo su tutti) vanno emessi PER ULTIMI: sul Hisense il Riposo
   // ridefinisce la velocita' ventola, quindi deve avere l'ultima parola.
-  SELECTS.forEach(s=>{ if(v[s.id] && v[s.id]!=='off'){ seq.push(GAP); seq.push({ action:'select.select_option', target:{entity_id:sel(s.id)}, data:{option:v[s.id]} }) } })
+  SELECTS.forEach(s=>{ if(v[s.id] && v[s.id]!=='off'){ seq.push({ action:'select.select_option', target:{entity_id:sel(s.id)}, data:{option:v[s.id]} }) } })
   // Coda di verifica: dopo l'assestamento riapplica solo cio' che non ha fatto presa
-  seq.push(GAP)
   seq.push({ action: v['sw_'+LAST]?'switch.turn_on':'switch.turn_off', target:{entity_id:sw(LAST)} })
   if (v.hvac_mode!=='off') {
-    seq.push({ delay:{seconds:40} })
+    seq.push({ delay:{seconds:45} })
     SWITCHES.forEach(s=>{
       const on = v['sw_'+s.id]
       if (s.id==='ai' && !on) return
       seq.push({ if:[{condition:'state', entity_id:sw(s.id), state: on?'off':'on'}],
-                 then:[{ action: on?'switch.turn_on':'switch.turn_off', target:{entity_id:sw(s.id)} }, GAP] })
+                 then:[{ action: on?'switch.turn_on':'switch.turn_off', target:{entity_id:sw(s.id)} }] })
     })
     SELECTS.forEach(s=>{ if(v[s.id] && v[s.id]!=='off')
       seq.push({ if:[{condition:'not', conditions:[{condition:'state', entity_id:sel(s.id), state:v[s.id]}]},],
