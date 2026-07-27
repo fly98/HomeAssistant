@@ -101,7 +101,7 @@
 </head>
 <body>
 <h1>Clima Camera</h1>
-<div class="sub" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 2px;"><span>❄️ <span id="conn">connessione…</span> · <span style="opacity:0.6">v2.6</span></span><button onclick="refreshWidget();toast('Aggiorno il widget…')" style="border:1.5px solid var(--ink-soft);background:rgba(255,255,255,0.55);color:var(--ink);border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;padding:4px 12px;line-height:1.2;white-space:nowrap;">Aggiorna</button></div>
+<div class="sub" style="padding:0 2px;">❄️ <span id="conn">connessione…</span> · <span style="opacity:0.6">v2.7</span></div>
 
 <div class="glass">
   <div class="card-title">Stato attuale</div>
@@ -431,12 +431,6 @@ function stopPolling(){ if(pollTimer)clearInterval(pollTimer); pollTimer=null }
 document.addEventListener('visibilitychange',()=>{ if(document.hidden)stopPolling(); else startPolling() })
 // Prova ad aggiornare il widget Scriptable quando si lascia la pagina (best-effort)
 let lastWidgetRefresh = 0
-function refreshWidget(){
-  const now = Date.now()
-  if (now - lastWidgetRefresh < 3000) return  // evita chiamate ripetute
-  lastWidgetRefresh = now
-  try { location.href = 'scriptable:///run/Aria%20Camera?ret=1' } catch(e){}
-}
 renderPresets()
 startPolling()
 </script>
