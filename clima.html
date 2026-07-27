@@ -101,7 +101,7 @@
 </head>
 <body>
 <h1>Clima Camera</h1>
-<div class="sub" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 2px;"><span>❄️ <span id="conn">connessione…</span> · <span style="opacity:0.6">v2.5</span></span><button onclick="refreshWidget();toast('Aggiorno il widget…')" style="border:1.5px solid var(--ink-soft);background:rgba(255,255,255,0.55);color:var(--ink);border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;padding:4px 12px;line-height:1.2;white-space:nowrap;">Aggiorna</button></div>
+<div class="sub" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 2px;"><span>❄️ <span id="conn">connessione…</span> · <span style="opacity:0.6">v2.6</span></span><button onclick="refreshWidget();toast('Aggiorno il widget…')" style="border:1.5px solid var(--ink-soft);background:rgba(255,255,255,0.55);color:var(--ink);border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;padding:4px 12px;line-height:1.2;white-space:nowrap;">Aggiorna</button></div>
 
 <div class="glass">
   <div class="card-title">Stato attuale</div>
@@ -378,10 +378,16 @@ function mToggle(id){
 async function savePresetFromModal() {
   const v = modalValues
   const seq = []
+  // Il ConnectLife non regge una raffica di comandi: vanno distanziati, o meta'
+  // vengono scartati. GAP e' la pausa fra un comando e l'altro.
+  const GAP = { delay:{ seconds: 7 } }
   seq.push({ action:'climate.set_hvac_mode', target:{entity_id:CLIMATE}, data:{hvac_mode:v.hvac_mode} })
   if (v.hvac_mode!=='off') {
+    // partendo da spento l'unita' ci mette qualche secondo a tornare online
+    seq.push({ wait_template:"{{ is_state('"+CLIMATE+"','"+v.hvac_mode+"') }}", timeout:{seconds:45}, continue_on_timeout:true })
+    seq.push({ delay:{seconds:3} })
     seq.push({ action:'climate.set_temperature', target:{entity_id:CLIMATE}, data:{temperature:v.temperature} })
-    if (!v.sw_ai) seq.push({ action:'climate.set_fan_mode', target:{entity_id:CLIMATE}, data:{fan_mode:v.fan_mode} })
+    if (!v.sw_ai) { seq.push(GAP); seq.push({ action:'climate.set_fan_mode', target:{entity_id:CLIMATE}, data:{fan_mode:v.fan_mode} }) }
   }
   // L'AI sul Hisense e' una MODALITA', non un accessorio: switch.turn_off su 'ai'
   // fa uscire l'unita' dalla modalita' corrente e la manda in Ventilatore.
@@ -389,11 +395,25 @@ async function savePresetFromModal() {
   SWITCHES.forEach(s=>{
     const on = v['sw_'+s.id]
     if (s.id==='ai' && !on) return
+    seq.push(GAP)
     seq.push({ action: on?'switch.turn_on':'switch.turn_off', target:{entity_id:sw(s.id)} })
   })
   // I select (Riposo su tutti) vanno emessi PER ULTIMI: sul Hisense il Riposo
   // ridefinisce la velocita' ventola, quindi deve avere l'ultima parola.
-  SELECTS.forEach(s=>{ if(v[s.id] && v[s.id]!=='off') seq.push({ action:'select.select_option', target:{entity_id:sel(s.id)}, data:{option:v[s.id]} }) })
+  SELECTS.forEach(s=>{ if(v[s.id] && v[s.id]!=='off'){ seq.push(GAP); seq.push({ action:'select.select_option', target:{entity_id:sel(s.id)}, data:{option:v[s.id]} }) } })
+  // Coda di verifica: dopo l'assestamento riapplica solo cio' che non ha fatto presa
+  if (v.hvac_mode!=='off') {
+    seq.push({ delay:{seconds:25} })
+    SWITCHES.forEach(s=>{
+      const on = v['sw_'+s.id]
+      if (s.id==='ai' && !on) return
+      seq.push({ if:[{condition:'state', entity_id:sw(s.id), state: on?'off':'on'}],
+                 then:[{ action: on?'switch.turn_on':'switch.turn_off', target:{entity_id:sw(s.id)} }, GAP] })
+    })
+    SELECTS.forEach(s=>{ if(v[s.id] && v[s.id]!=='off')
+      seq.push({ if:[{condition:'not', conditions:[{condition:'state', entity_id:sel(s.id), state:v[s.id]}]},],
+                 then:[{ action:'select.select_option', target:{entity_id:sel(s.id)}, data:{option:v[s.id]} }] }) })
+  }
   const cfg = presetConfigs[editingPreset]
   const payload = { alias: (cfg&&cfg.alias) || (PRESETS.find(p=>p.id===editingPreset)||{}).name, icon: (cfg&&cfg.icon)||'mdi:snowflake', sequence:seq, mode:'single' }
   try {
