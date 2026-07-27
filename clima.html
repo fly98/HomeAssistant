@@ -101,7 +101,7 @@
 </head>
 <body>
 <h1>Clima Camera</h1>
-<div class="sub" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 2px;"><span>❄️ <span id="conn">connessione…</span> · <span style="opacity:0.6">v2.4</span></span><button onclick="refreshWidget();toast('Aggiorno il widget…')" style="border:1.5px solid var(--ink-soft);background:rgba(255,255,255,0.55);color:var(--ink);border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;padding:4px 12px;line-height:1.2;white-space:nowrap;">Aggiorna</button></div>
+<div class="sub" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 2px;"><span>❄️ <span id="conn">connessione…</span> · <span style="opacity:0.6">v2.5</span></span><button onclick="refreshWidget();toast('Aggiorno il widget…')" style="border:1.5px solid var(--ink-soft);background:rgba(255,255,255,0.55);color:var(--ink);border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;padding:4px 12px;line-height:1.2;white-space:nowrap;">Aggiorna</button></div>
 
 <div class="glass">
   <div class="card-title">Stato attuale</div>
@@ -383,7 +383,6 @@ async function savePresetFromModal() {
     seq.push({ action:'climate.set_temperature', target:{entity_id:CLIMATE}, data:{temperature:v.temperature} })
     if (!v.sw_ai) seq.push({ action:'climate.set_fan_mode', target:{entity_id:CLIMATE}, data:{fan_mode:v.fan_mode} })
   }
-  SELECTS.forEach(s=>{ if(v[s.id] && v[s.id]!=='off') seq.push({ action:'select.select_option', target:{entity_id:sel(s.id)}, data:{option:v[s.id]} }) })
   // L'AI sul Hisense e' una MODALITA', non un accessorio: switch.turn_off su 'ai'
   // fa uscire l'unita' dalla modalita' corrente e la manda in Ventilatore.
   // Con hvac_mode diverso da 'auto' l'AI e' gia' esclusa, quindi non va mai spenta esplicitamente.
@@ -392,6 +391,9 @@ async function savePresetFromModal() {
     if (s.id==='ai' && !on) return
     seq.push({ action: on?'switch.turn_on':'switch.turn_off', target:{entity_id:sw(s.id)} })
   })
+  // I select (Riposo su tutti) vanno emessi PER ULTIMI: sul Hisense il Riposo
+  // ridefinisce la velocita' ventola, quindi deve avere l'ultima parola.
+  SELECTS.forEach(s=>{ if(v[s.id] && v[s.id]!=='off') seq.push({ action:'select.select_option', target:{entity_id:sel(s.id)}, data:{option:v[s.id]} }) })
   const cfg = presetConfigs[editingPreset]
   const payload = { alias: (cfg&&cfg.alias) || (PRESETS.find(p=>p.id===editingPreset)||{}).name, icon: (cfg&&cfg.icon)||'mdi:snowflake', sequence:seq, mode:'single' }
   try {
