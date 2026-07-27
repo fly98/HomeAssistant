@@ -101,7 +101,7 @@
 </head>
 <body>
 <h1>Clima Camera</h1>
-<div class="sub" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 2px;"><span>❄️ <span id="conn">connessione…</span> · <span style="opacity:0.6">v2.3</span></span><button onclick="refreshWidget();toast('Aggiorno il widget…')" style="border:1.5px solid var(--ink-soft);background:rgba(255,255,255,0.55);color:var(--ink);border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;padding:4px 12px;line-height:1.2;white-space:nowrap;">Aggiorna</button></div>
+<div class="sub" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 2px;"><span>❄️ <span id="conn">connessione…</span> · <span style="opacity:0.6">v2.4</span></span><button onclick="refreshWidget();toast('Aggiorno il widget…')" style="border:1.5px solid var(--ink-soft);background:rgba(255,255,255,0.55);color:var(--ink);border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;padding:4px 12px;line-height:1.2;white-space:nowrap;">Aggiorna</button></div>
 
 <div class="glass">
   <div class="card-title">Stato attuale</div>
@@ -196,9 +196,9 @@ function renderControls() {
   const fanMode = climate ? climate.attributes.fan_mode : null
   // La velocità ventola sul Hisense è valida SOLO in modalità Ventola:
   // inviarla in cool/dry/heat fa commutare l'unità in fan_only.
-  const fanLocked = (aiOn && AI_LOCKS.includes('fan_mode')) || climateState !== 'fan_only'
+  const fanLocked = aiOn && AI_LOCKS.includes('fan_mode')
   // Ventola (piena larghezza, scroll pill)
-  html += '<div class="ctrl-block '+(fanLocked?'disabled-block':'')+'"><div class="ctrl-label">Velocità ventola'+(climateState!=='fan_only'?' <span style="font-weight:400;opacity:.6">— solo in modalità Ventola</span>':'')+'</div><div class="pill-row">'
+  html += '<div class="ctrl-block '+(fanLocked?'disabled-block':'')+'"><div class="ctrl-label">Velocità ventola</div><div class="pill-row">'
   FAN.opts.forEach(o => html += '<div class="pill '+(fanMode===o?'active':'')+'" onclick="setFan(\''+o+'\')">'+FAN.labels[o]+'</div>')
   html += '</div></div>'
   // Selects in griglia 2 colonne
@@ -266,11 +266,7 @@ async function stepTemp(d) {
   await callService('climate','set_temperature',CLIMATE,{temperature:t}); scheduleRefresh()
 }
 async function setMode(m){ await callService('climate','set_hvac_mode',CLIMATE,{hvac_mode:m}); toast('Modalità: '+((MODES.find(x=>x.v===m)||{}).l||m)); scheduleRefresh() }
-async function setFan(o){
-  const st = STATE[CLIMATE] ? STATE[CLIMATE].state : 'off'
-  if (st !== 'fan_only') { toast('Velocità ventola disponibile solo in modalità Ventola'); return }
-  await callService('climate','set_fan_mode',CLIMATE,{fan_mode:o}); scheduleRefresh()
-}
+async function setFan(o){ await callService('climate','set_fan_mode',CLIMATE,{fan_mode:o}); scheduleRefresh() }
 async function setSelect(id,o){ await callService('select','select_option',sel(id),{option:o}); scheduleRefresh() }
 async function toggleSwitch(id){ const on=STATE[sw(id)]&&STATE[sw(id)].state==='on'; await callService('switch',on?'turn_off':'turn_on',sw(id)); scheduleRefresh() }
 const PRESETS = [
@@ -339,11 +335,9 @@ function renderModalFields() {
       '<button class="rbtn" style="width:42px;height:42px;font-size:1.4rem" onclick="mTemp(-1)">−</button>'+
       '<span style="font-size:1.5rem;font-weight:700;min-width:56px;text-align:center">'+modalValues.temperature+'°</span>'+
       '<button class="rbtn" style="width:42px;height:42px;font-size:1.4rem" onclick="mTemp(1)">+</button></div></div>'
-    if (modalValues.hvac_mode==='fan_only') {
-      h += '<div class="ctrl-block '+(aiOn?'disabled-block':'')+'"><div class="ctrl-label">Velocità ventola</div><div class="pill-row">'
-      FAN.opts.forEach(o=>h+='<div class="pill '+(modalValues.fan_mode===o?'active':'')+'" onclick="mSet(\'fan_mode\',\''+o+'\')">'+FAN.labels[o]+'</div>')
-      h += '</div></div>'
-    }
+    h += '<div class="ctrl-block '+(aiOn?'disabled-block':'')+'"><div class="ctrl-label">Velocità ventola</div><div class="pill-row">'
+    FAN.opts.forEach(o=>h+='<div class="pill '+(modalValues.fan_mode===o?'active':'')+'" onclick="mSet(\'fan_mode\',\''+o+'\')">'+FAN.labels[o]+'</div>')
+    h += '</div></div>'
   }
   SELECTS.forEach(s=>{
     let locked = aiOn && AI_LOCKS.includes(s.id)
@@ -387,12 +381,17 @@ async function savePresetFromModal() {
   seq.push({ action:'climate.set_hvac_mode', target:{entity_id:CLIMATE}, data:{hvac_mode:v.hvac_mode} })
   if (v.hvac_mode!=='off') {
     seq.push({ action:'climate.set_temperature', target:{entity_id:CLIMATE}, data:{temperature:v.temperature} })
-    // set_fan_mode va inviato SOLO in modalità Ventola: in cool/dry/heat
-    // il Hisense lo interpreta come cambio modalità e passa a fan_only
-    if (!v.sw_ai && v.hvac_mode==='fan_only') seq.push({ action:'climate.set_fan_mode', target:{entity_id:CLIMATE}, data:{fan_mode:v.fan_mode} })
+    if (!v.sw_ai) seq.push({ action:'climate.set_fan_mode', target:{entity_id:CLIMATE}, data:{fan_mode:v.fan_mode} })
   }
   SELECTS.forEach(s=>{ if(v[s.id] && v[s.id]!=='off') seq.push({ action:'select.select_option', target:{entity_id:sel(s.id)}, data:{option:v[s.id]} }) })
-  SWITCHES.forEach(s=>{ seq.push({ action: v['sw_'+s.id]?'switch.turn_on':'switch.turn_off', target:{entity_id:sw(s.id)} }) })
+  // L'AI sul Hisense e' una MODALITA', non un accessorio: switch.turn_off su 'ai'
+  // fa uscire l'unita' dalla modalita' corrente e la manda in Ventilatore.
+  // Con hvac_mode diverso da 'auto' l'AI e' gia' esclusa, quindi non va mai spenta esplicitamente.
+  SWITCHES.forEach(s=>{
+    const on = v['sw_'+s.id]
+    if (s.id==='ai' && !on) return
+    seq.push({ action: on?'switch.turn_on':'switch.turn_off', target:{entity_id:sw(s.id)} })
+  })
   const cfg = presetConfigs[editingPreset]
   const payload = { alias: (cfg&&cfg.alias) || (PRESETS.find(p=>p.id===editingPreset)||{}).name, icon: (cfg&&cfg.icon)||'mdi:snowflake', sequence:seq, mode:'single' }
   try {
