@@ -1,0 +1,14 @@
+{
+  "descrizione": "Backup configurazione HomeKit Bridge PRIMA della pulizia del 29/07/2026",
+  "entry_id": "bc591d4fd32963fd8cd5b782525d696a",
+  "titolo": "HASS Bridge I49L:51828",
+  "data_backup": "2026-07-29",
+  "config": {
+    "mode": "bridge",
+    "include_exclude_mode": "exclude",
+    "domains": ["alarm_control_panel","button","climate","cover","fan","input_boolean","input_button","lock","media_player","remote","sensor","switch","vacuum","water_heater","light","person"],
+    "entities": ["light.alessia","button.apri_divano","button.cancello_open_door","input_boolean.apriportacasa","input_boolean.aria_condizionata","sensor.backup_state","sensor.casa_range_extender_battery","sensor.tastierino_dell_ingresso_battery","input_boolean.bloccaporta","input_boolean.candela","person.filippo","person.filippo_2","person.viola","input_boolean.party","input_boolean.allarme"]
+  },
+  "come_ripristinare": "HA > Impostazioni > Dispositivi e servizi > HomeKit Bridge > Configura: rimettere mode=bridge, include_exclude_mode=exclude, i 16 domini e le 15 entita sopra. Oppure via ha-worker: POST /cfgflow?type=options con handler=entry_id, poi step init con questi valori, poi step exclude con la lista entities.",
+  "risultato_prima": "397 entita esposte, di cui 188 non disponibili"
+}
