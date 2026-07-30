@@ -71,6 +71,33 @@
 
 <script>
 const WORKER = 'https://ha-worker.f-castiglioni.workers.dev'
+
+let KEY = localStorage.getItem('ha_key') || '';
+function askKey(msg){
+  if(document.getElementById('ulk')) return;
+  const d=document.createElement('div'); d.id='ulk';
+  d.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px';
+  d.innerHTML='<div style="max-width:340px;width:100%;background:#16181d;border:1px solid #2a2e37;border-radius:20px;padding:28px 22px;text-align:center;color:#e7e9ee;font-family:system-ui,-apple-system,sans-serif;box-sizing:border-box">'
+    +'<div style="font-size:38px;margin-bottom:10px">&#128274;</div>'
+    +'<div style="font-size:18px;font-weight:700;margin-bottom:6px">Casa protetta</div>'
+    +'<div style="font-size:13px;opacity:.7;margin-bottom:16px">'+(msg||'Inserisci la chiave di accesso. Resta salvata solo su questo dispositivo.')+'</div>'
+    +'<input id="ulk-in" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Chiave" style="width:100%;box-sizing:border-box;background:#0e1014;border:1px solid #333a45;border-radius:12px;padding:12px 14px;color:#e7e9ee;font-size:15px;text-align:center;margin-bottom:12px">'
+    +'<button id="ulk-b" style="width:100%;background:#f0a500;border:0;border-radius:12px;padding:12px;font-size:15px;font-weight:700;color:#111">Sblocca</button></div>';
+  document.body.appendChild(d);
+  const inp=d.querySelector('#ulk-in'), btn=d.querySelector('#ulk-b');
+  const save=()=>{const v=inp.value.trim(); if(!v)return; localStorage.setItem('ha_key',v); location.reload();};
+  btn.onclick=save; inp.onkeydown=e=>{if(e.key==='Enter')save()};
+  setTimeout(()=>inp.focus(),120);
+}
+async function hfetch(path, opts){
+  opts = opts || {};
+  const h = Object.assign({}, opts.headers||{});
+  if(KEY) h['X-API-Key']=KEY;
+  const r = await fetch(WORKER+path, Object.assign({}, opts, {headers:h}));
+  if(r.status===401){ KEY=''; localStorage.removeItem('ha_key'); askKey('Chiave non valida o mancante.'); const e=new Error('unauthorized'); e.code=401; throw e; }
+  return r;
+}
+
 const COLORS = { 'Filippo': '#4a9eff', 'Mena': '#e07a5f', 'viola': '#b088d9', 'Viola': '#b088d9', 'Alessia': '#e0a458' }
 const liveMaps = {}, histMaps = {}
 const memberData = {}
@@ -90,7 +117,7 @@ function tiles(map) {
 async function loadFamily() {
   document.getElementById('err').textContent = ''
   try {
-    const resp = await fetch(WORKER + '/family')
+    const resp = await hfetch('/family')
     const members = await resp.json()
     if (!Array.isArray(members)) { document.getElementById('err').textContent = 'Errore: ' + JSON.stringify(members); return }
     document.getElementById('ts').textContent = 'Aggiornato ' + new Date().toLocaleTimeString('it-IT')
@@ -182,7 +209,7 @@ async function selectDay(sid, date, el) {
   tl.innerHTML = '<div class="loading">Caricamento tracciato…</div>'
 
   try {
-    const resp = await fetch(`${WORKER}/history_family?date=${date}`)
+    const resp = await hfetch('/history_family?date='+date)
     const data = await resp.json()
     const points = data[name] || data[name.charAt(0).toUpperCase()+name.slice(1)] || []
     drawHistory(sid, name, points)
