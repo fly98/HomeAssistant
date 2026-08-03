@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Automazioni · Casa</title>
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+:root{
+  --bg:#0e1014; --card:#16181d; --line:#242832; --txt:#e7e9ee; --dim:#8b93a7;
+  --on:#3ddc84; --off:#4a5060; --acc:#f0a500; --warn:#ff6b6b;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--txt);
+  font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  padding:env(safe-area-inset-top) 0 calc(env(safe-area-inset-bottom) + 40px)}
+header{padding:22px 18px 10px;position:sticky;top:0;background:linear-gradient(180deg,var(--bg) 72%,transparent);z-index:10}
+h1{margin:0;font-size:26px;font-weight:800;letter-spacing:-.5px}
+.sub{color:var(--dim);font-size:13px;margin-top:4px}
+.tools{display:flex;gap:8px;padding:10px 18px 4px;flex-wrap:wrap}
+.chip{background:var(--card);border:1px solid var(--line);color:var(--dim);
+  border-radius:999px;padding:7px 13px;font-size:12.5px;font-weight:600;cursor:pointer}
+.chip.sel{background:var(--acc);border-color:var(--acc);color:#111}
+#q{flex:1;min-width:150px;background:var(--card);border:1px solid var(--line);
+  color:var(--txt);border-radius:999px;padding:8px 14px;font-size:13.5px;outline:none}
+.wrap{padding:8px 14px}
+.grp{margin:18px 0 8px;color:var(--dim);font-size:11.5px;font-weight:800;
+  letter-spacing:1.3px;text-transform:uppercase;padding-left:4px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+  padding:14px 15px;margin-bottom:9px}
+.top{display:flex;align-items:flex-start;gap:12px}
+.nm{font-size:15.5px;font-weight:700;flex:1;line-height:1.3}
+.desc{color:var(--dim);font-size:13px;line-height:1.5;margin-top:7px}
+.meta{color:#6b7285;font-size:11.5px;margin-top:8px;display:flex;gap:14px;flex-wrap:wrap;color:#6b7285}
+.sw{width:48px;height:28px;border-radius:999px;background:var(--off);
+  position:relative;flex:0 0 auto;cursor:pointer;transition:background .18s}
+.sw.on{background:var(--on)}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;
+  border-radius:50%;background:#fff;transition:transform .18s}
+.sw.on::after{transform:translateX(20px)}
+.run{background:none;border:1px solid var(--line);color:var(--dim);border-radius:10px;
+  padding:6px 12px;font-size:12px;font-weight:600;margin-top:11px;cursor:pointer}
+.run:active{background:var(--line)}
+.tag{display:inline-block;background:#1e2129;border-radius:6px;padding:2px 7px;
+  font-size:10.5px;color:var(--dim);margin-right:5px;font-family:ui-monospace,monospace}
+.empty{color:var(--dim);text-align:center;padding:40px 20px;font-size:14px}
+.err{background:#2a1416;border:1px solid #4a2225;color:#ff9a9a;border-radius:12px;
+  padding:12px 14px;margin:12px 14px;font-size:13px}
+.foot{color:#5a6072;font-size:11.5px;text-align:center;padding:22px 20px 10px;line-height:1.6}
+</style>
+</head>
+<body>
+<header>
+  <h1>Automazioni</h1>
+  <div class="sub" id="sub">caricamento…</div>
+</header>
+<div class="tools">
+  <input id="q" placeholder="Cerca…" autocomplete="off">
+  <div class="chip sel" data-f="all">Tutte</div>
+  <div class="chip" data-f="on">Attive</div>
+  <div class="chip" data-f="off">Spente</div>
+</div>
+<div id="app" class="wrap"></div>
+<div class="foot">Tocca l'interruttore per attivare o disattivare.<br>
+"Esegui" la lancia subito, ignorando le condizioni.</div>
+
+<script>
+const WORKER = 'https://ha-worker.f-castiglioni.workers.dev';
+let KEY = localStorage.getItem('ha_key') || '';
+
+function askKey(msg){
+  if(document.getElementById('ulk')) return;
+  const d=document.createElement('div'); d.id='ulk';
+  d.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px';
+  d.innerHTML='<div style="max-width:340px;width:100%;background:#16181d;border:1px solid #2a2e37;border-radius:20px;padding:28px 22px;text-align:center;box-sizing:border-box">'
+    +'<div style="font-size:38px;margin-bottom:10px">&#128274;</div>'
+    +'<div style="font-size:18px;font-weight:700;margin-bottom:6px">Casa protetta</div>'
+    +'<div style="font-size:13px;color:#8b93a7;margin-bottom:16px">'+(msg||'Inserisci la chiave di accesso.')+'</div>'
+    +'<input id="ulk-in" type="password" placeholder="Chiave" autocomplete="off" autocapitalize="off" spellcheck="false" style="width:100%;box-sizing:border-box;background:#0e1014;border:1px solid #333a45;border-radius:12px;padding:12px 14px;color:#e7e9ee;font-size:15px;text-align:center;margin-bottom:12px">'
+    +'<button id="ulk-b" style="width:100%;background:#f0a500;border:0;border-radius:12px;padding:12px;font-size:15px;font-weight:700;color:#111">Sblocca</button></div>';
+  document.body.appendChild(d);
+  const inp=d.querySelector('#ulk-in'), btn=d.querySelector('#ulk-b');
+  const save=()=>{const v=inp.value.trim(); if(!v)return; localStorage.setItem('ha_key',v); location.reload();};
+  btn.onclick=save; inp.onkeydown=e=>{if(e.key==='Enter')save()};
+  setTimeout(()=>inp.focus(),120);
+}
+async function hfetch(path, opts){
+  opts = opts || {};
+  const h = Object.assign({}, opts.headers||{});
+  if(KEY) h['X-API-Key']=KEY;
+  const r = await fetch(WORKER+path, Object.assign({}, opts, {headers:h}));
+  if(r.status===401){ KEY=''; localStorage.removeItem('ha_key'); askKey('Chiave non valida.'); throw new Error('401'); }
+  return r;
+}
+
+// Gruppi e descrizioni scritte a mano. Chi non e' qui finisce in "Altro".
+const INFO = {
+  'automation.metti_allarme':{g:'Sicurezza',d:'Quando esce l\'ultima persona: inserisce l\'allarme Ring, poi avvia la chiusura delle mandate Nuki in background. Dopo un minuto verifica che l\'allarme sia davvero inserito e avvisa se non lo è.'},
+  'automation.togli_allarme':{g:'Sicurezza',d:'Quando rientra il primo: disinserisce l\'allarme e apre le mandate della porta.'},
+  'automation.porta_casa_aperta_con_casa_vuota':{g:'Sicurezza',d:'Se la porta d\'ingresso viene aperta mentre non c\'è nessuno, manda una notifica urgente sull\'iPhone.'},
+  'automation.allarmeon':{g:'Sicurezza',d:'Automazione storica di inserimento allarme.'},
+  'automation.allarmeoff':{g:'Sicurezza',d:'Automazione storica di disinserimento allarme.'},
+
+  'automation.casa_vuota_spegni_tutto':{g:'Casa vuota',d:'Quando esce l\'ultima persona spegne: tutte le luci, 6 ventole, i due condizionatori, il termostato del riscaldamento, le 3 TV, ventola e trucco di Viola. NON tocca la spa né la presa Jupiter.'},
+  'automation.viola_esce_spegni_camera':{g:'Casa vuota',d:'Quando Viola esce di casa spegne solo la sua camera: fontanella, led, scrivania, luce tavolo, bambine scrivania e tavolo, ventola, trucco.'},
+  'automation.alessia_esce_spegni_camera':{g:'Casa vuota',d:'Quando Alessia esce di casa spegne solo la sua camera: piantana, luce Alessia, comodino, ventola.'},
+  'automation.mena_esce':{g:'Casa vuota',d:'Automazione legata all\'uscita di Mena.'},
+  'automation.mena_a_lavoro':{g:'Casa vuota',d:'Segna Mena come "al lavoro" quando arriva in ufficio.'},
+  'automation.mena_aggiorna_pannello_posizione':{g:'Casa vuota',d:'Aggiorna il pannello con la posizione di Mena.'},
+
+  'automation.lavanderia_luce_con_sensore_hue':{g:'Luci automatiche',d:'Il sensore Hue accende la luce della lavanderia al movimento, con dissolvenza di 4 secondi. La spegne 2 minuti dopo l\'ultimo movimento rilevato.'},
+  'automation.hue_smart_button_1_luci_giardino':{g:'Luci automatiche',d:'Pulsante Hue in giardino: pressione breve accende/spegne Giardino Piccola, pressione prolungata Giardino Grande.'},
+  'automation.luci_cucina_auto_accensione':{g:'Luci automatiche',d:'Accende le luci della cucina automaticamente.'},
+  'automation.luci_cucina_auto_accensione_al_rientro':{g:'Luci automatiche',d:'Riaccende le luci cucina quando si rientra.'},
+  'automation.luci_cucina_auto_spegnimento':{g:'Luci automatiche',d:'Spegne le luci della cucina dopo un periodo senza movimento.'},
+  'automation.led_viola_automatico_on':{g:'Luci automatiche',d:'Accendendo la scrivania di Viola, accende anche il led e la presa trucco.'},
+  'automation.led_viola_automatico_off':{g:'Luci automatiche',d:'Spegnendo la scrivania di Viola, spegne led e presa trucco.'},
+  'automation.spegli_striscia_tv':{g:'Luci automatiche',d:'Spegne la striscia led dietro la TV.'},
+  'automation.candelaon':{g:'Luci automatiche',d:'Accende la candela.'},
+  'automation.candelaoff':{g:'Luci automatiche',d:'Spegne la candela.'},
+
+  'automation.ventola_cucina_auto':{g:'Clima',d:'Gestione automatica della ventola in cucina.'},
+  'automation.ventola_off_accendi_luce_b':{g:'Clima',d:'Quando la ventola cucina si spegne, accende la Luce B.'},
+  'automation.acqia_fredda':{g:'Clima',d:'Automazione legata all\'acqua fredda.'},
+
+  'automation.piscina_controllo_intelligente_riscaldamento':{g:'Piscina',d:'Regola il riscaldamento della spa in base alle prenotazioni.'},
+  'automation.piscina_routine_automatica_riscaldamento':{g:'Piscina',d:'Avvia il riscaldamento programmato della spa.'},
+  'automation.piscina_routine_automatica_standby':{g:'Piscina',d:'Riporta la spa in standby.'},
+  'automation.piscina_fine_bagno_standby':{g:'Piscina',d:'A fine bagno riporta la spa in standby.'},
+  'automation.piscina_avvia_bagno_programmato':{g:'Piscina',d:'Avvia il bagno all\'orario prenotato.'},
+
+  'automation.widget_ios_aggiorna_su_cambio_aria_camera':{g:'Sistema',d:'Manda una notifica silenziosa a iPhone e iPad per aggiornare i widget quando cambia lo stato del condizionatore camera o della spa.'},
+  'automation.diagnostica_nuki_registra_cadute':{g:'Sistema',d:'Registra nel logbook ogni volta che il bridge Nuki cade e torna online, con la durata. Serve a diagnosticare il bridge difettoso.'},
+  'automation.manutenzione_riavvio_mensile_ha':{g:'Sistema',d:'Il primo del mese alle 22:00 avvisa e dopo 2 minuti riavvia Home Assistant, per liberare la memoria accumulata.'}
+};
+const ORD = ['Sicurezza','Casa vuota','Luci automatiche','Clima','Piscina','Sistema','Altro'];
+
+let DATA=[], filt='all', q='';
+
+function fmt(ts){
+  if(!ts) return 'mai eseguita';
+  const d=new Date(ts), n=new Date(), s=(n-d)/1000;
+  if(s<60) return 'pochi secondi fa';
+  if(s<3600) return Math.floor(s/60)+' min fa';
+  if(s<86400) return Math.floor(s/3600)+' ore fa';
+  if(s<172800) return 'ieri';
+  return d.toLocaleDateString('it-IT',{day:'numeric',month:'short'});
+}
+
+async function load(){
+  try{
+    const r=await hfetch('/states');
+    const all=await r.json();
+    DATA=all.filter(e=>e.entity_id.startsWith('automation.') && e.state!=='unavailable');
+    const on=DATA.filter(e=>e.state==='on').length;
+    document.getElementById('sub').textContent=DATA.length+' automazioni · '+on+' attive · '+(DATA.length-on)+' spente';
+    render();
+  }catch(err){
+    if(String(err).includes('401')) return;
+    document.getElementById('app').innerHTML='<div class="err">Non riesco a leggere le automazioni.<br>'+err+'</div>';
+  }
+}
+
+function render(){
+  const app=document.getElementById('app');
+  let rows=DATA.slice();
+  if(filt!=='all') rows=rows.filter(e=>e.state===filt);
+  if(q) rows=rows.filter(e=>{
+    const i=INFO[e.entity_id]||{};
+    return ((e.attributes.friendly_name||'')+' '+(i.d||'')+' '+e.entity_id).toLowerCase().includes(q);
+  });
+  if(!rows.length){ app.innerHTML='<div class="empty">Nessun risultato.</div>'; return; }
+
+  const by={};
+  rows.forEach(e=>{ const g=(INFO[e.entity_id]||{}).g||'Altro'; (by[g]=by[g]||[]).push(e); });
+
+  let h='';
+  ORD.forEach(g=>{
+    if(!by[g]) return;
+    h+='<div class="grp">'+g+' · '+by[g].length+'</div>';
+    by[g].sort((a,b)=>(a.attributes.friendly_name||'').localeCompare(b.attributes.friendly_name||''));
+    by[g].forEach(e=>{
+      const i=INFO[e.entity_id]||{};
+      const nm=(e.attributes.friendly_name||e.entity_id).trim();
+      h+='<div class="card">'
+        +'<div class="top"><div class="nm">'+nm+'</div>'
+        +'<div class="sw'+(e.state==='on'?' on':'')+'" data-t="'+e.entity_id+'"></div></div>'
+        +(i.d?'<div class="desc">'+i.d+'</div>':'<div class="desc" style="opacity:.55">Nessuna descrizione.</div>')
+        +'<div class="meta"><span>Ultima volta: '+fmt(e.attributes.last_triggered)+'</span></div>'
+        +'<div><span class="tag">'+e.entity_id.replace('automation.','')+'</span></div>'
+        +'<button class="run" data-r="'+e.entity_id+'">Esegui ora</button>'
+        +'</div>';
+    });
+  });
+  app.innerHTML=h;
+
+  app.querySelectorAll('.sw').forEach(el=>{
+    el.onclick=async()=>{
+      const id=el.dataset.t, turnOn=!el.classList.contains('on');
+      el.classList.toggle('on');
+      try{
+        await hfetch('/call',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({domain:'automation',service:turnOn?'turn_on':'turn_off',entity_id:id})});
+        setTimeout(load,700);
+      }catch(err){ el.classList.toggle('on'); }
+    };
+  });
+  app.querySelectorAll('.run').forEach(el=>{
+    el.onclick=async()=>{
+      const id=el.dataset.r, old=el.textContent;
+      el.textContent='Eseguita ✓';
+      try{
+        await hfetch('/call',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({domain:'automation',service:'trigger',entity_id:id})});
+      }catch(err){ el.textContent='Errore'; }
+      setTimeout(()=>{el.textContent=old; load();},1800);
+    };
+  });
+}
+
+document.querySelectorAll('.chip').forEach(c=>{
+  c.onclick=()=>{
+    document.querySelectorAll('.chip').forEach(x=>x.classList.remove('sel'));
+    c.classList.add('sel'); filt=c.dataset.f; render();
+  };
+});
+document.getElementById('q').oninput=e=>{ q=e.target.value.toLowerCase().trim(); render(); };
+
+if(!KEY) askKey();
+load();
+setInterval(load, 30000);
+</script>
+</body>
+</html>
