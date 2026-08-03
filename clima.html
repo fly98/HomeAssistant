@@ -142,6 +142,12 @@
     <div class="modal-handle"></div>
     <div class="modal-title" id="modal-title">Modifica preset</div>
     <div class="modal-sub" id="modal-sub">Imposta i valori che questo preset applicherà.</div>
+    <div style="margin:14px 0 18px">
+      <label style="display:block;font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;opacity:.6;margin-bottom:6px">Nome del preset</label>
+      <input id="preset-name" type="text" maxlength="40" placeholder="es. Notte camera"
+        style="width:100%;box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);
+               border-radius:12px;padding:11px 14px;color:inherit;font-size:1rem;font-family:inherit;outline:none">
+    </div>
     <div id="modal-fields"></div>
     <div class="modal-actions">
       <button class="mbtn mbtn-cancel" onclick="closeModal()">Annulla</button>
@@ -323,7 +329,7 @@ function presetSummary(id) {
 async function renderPresets() {
   await Promise.all(PRESETS.map(p=>loadPreset(p.id)))
   document.getElementById('preset-grid').innerHTML = PRESETS.map(p=>
-    '<div class="preset-card"><div class="preset-name">'+p.icon+' '+p.name+'</div>'+
+    '<div class="preset-card"><div class="preset-name">'+p.icon+' '+(((presetConfigs[p.id]||{}).alias)||p.name)+'</div>'+
     '<div class="preset-desc">'+presetSummary(p.id)+'</div>'+
     '<div class="preset-btns"><button class="pbtn pbtn-attiva" onclick="attivaPreset(\''+p.id+'\')">Attiva</button>'+
     '<button class="pbtn pbtn-mod" onclick="openModal(\''+p.id+'\')">Modifica</button></div></div>'
@@ -347,7 +353,9 @@ function openModal(id) {
   editingPreset = id
   modalValues = cfgToValues(presetConfigs[id])
   const p = PRESETS.find(x=>x.id===id)
-  document.getElementById('modal-title').textContent = p.icon+' '+p.name
+  const _cfg = presetConfigs[id]
+  document.getElementById('modal-title').textContent = p.icon+' '+((_cfg&&_cfg.alias)||p.name)
+  document.getElementById('preset-name').value = (_cfg && _cfg.alias) ? _cfg.alias : p.name
   renderModalFields()
   document.getElementById('modal-bg').classList.add('show')
 }
@@ -452,7 +460,8 @@ async function savePresetFromModal() {
                  then:[{ action:'select.select_option', target:{entity_id:sel(s.id)}, data:{option:v[s.id]} }] }) })
   }
   const cfg = presetConfigs[editingPreset]
-  const payload = { alias: (cfg&&cfg.alias) || (PRESETS.find(p=>p.id===editingPreset)||{}).name, icon: (cfg&&cfg.icon)||'mdi:snowflake', sequence:seq, mode:'single' }
+  const _nm = (document.getElementById('preset-name').value||'').trim()
+  const payload = { alias: _nm || (cfg&&cfg.alias) || (PRESETS.find(p=>p.id===editingPreset)||{}).name, icon: (cfg&&cfg.icon)||'mdi:snowflake', sequence:seq, mode:'single' }
   try {
     const r = await hfetch('/script?id='+editingPreset,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
     const res = await r.json()
